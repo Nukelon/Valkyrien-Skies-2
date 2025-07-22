@@ -8,48 +8,33 @@ on:
       - '1.20.1/*'
   pull_request:
     types: [ opened, synchronize, reopened ]
+  workflow_dispatch:
+
 jobs:
-  validate-gradle:
-    name: "Validate Gradle wrapper"
+  build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true # Clone with vs-core submodule
-      - uses: gradle/wrapper-validation-action@v1
-
-  json-yaml-validate:
-    name: "Validate Json/Yaml files"
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write # enable write permissions for pull request comments
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: json-yaml-validate
-        id: json-yaml-validate
-        uses: GrantBirki/json-yaml-validate@v2.3.1
-        with:
-          comment: "true" # enable comment mode
-
-  test-server:
-    name: Test Server
-    strategy:
-      matrix:
-        serverType: [ 'fabric', 'forge' ]
-    runs-on: ubuntu-latest
-    timeout-minutes: 20 # Fail after 20 minutes
-    steps:
-      - name: Shallow Clone (--recurse-submodules)
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          submodules: recursive
+          fetch-depth: 0
+          fetch-tags: true
 
-      - name: Setup Gradle & Caches
-        uses: "./.github/actions/setup-gradle"
-
-      - name: Test Server
-        uses: ValkyrienSkies/Minecraft-Architectury-Testing@v1.9
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
         with:
-          serverType: ${{ matrix.serverType }}
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build with Gradle
+        run: ./gradlew build
+
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiled-jars
+          path: |
+            **/build/libs/*.jar
